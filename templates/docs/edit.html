@@ -17,6 +17,9 @@
                 <a href="{{ url_for('doc_print_form', doc_id=doc.id, form_type='transfer') }}" target="_blank" class="btn btn-outline-primary">
                     <i class="bi bi-printer"></i> Печать реестра
                 </a>
+                <a href="{{ url_for('doc_print_form', doc_id=doc.id, form_type='register') }}" target="_blank" class="btn btn-outline-primary">
+                    <i class="bi bi-printer"></i> Реестр внесения в комплекс
+                </a>
                 {% endif %}
                 {% if doc.status != 'posted' %}
                 <form method="POST" action="{{ url_for('doc_post_route', doc_id=doc.id) }}" onsubmit="return confirm('Провести документ?');">
@@ -191,10 +194,13 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <input type="text" id="pickSearch" class="form-control mb-2" placeholder="Поиск..." oninput="loadPickCards()">
+                <input type="text" id="pickSearch" class="form-control mb-2" placeholder="Поиск по номеру..." oninput="loadPickCards()">
+                {% if doc.doc_type in ['issue', 'transfer_mfc'] %}
+                <input type="text" id="pickOwnerSearch" class="form-control mb-2" placeholder="Поиск по ФИО владельца..." oninput="loadPickCards()">
+                {% endif %}
                 <div class="table-responsive pick-modal">
                     <table class="table table-hover table-sm">
-                        <thead><tr><th>Номер</th><th>Вид</th><th>Статус</th><th></th></tr></thead>
+                        <thead><tr><th>Номер</th><th>Вид</th>{% if doc.doc_type in ['issue', 'transfer_mfc'] %}<th>Владелец</th>{% endif %}<th>Статус</th><th></th></tr></thead>
                         <tbody id="pickCardsBody"></tbody>
                     </table>
                 </div>
@@ -272,6 +278,7 @@ function pickCard(lineIdx) {
 
 function loadPickCards() {
     const q = document.getElementById('pickSearch').value;
+    const showOwnerCol = ['issue', 'transfer_mfc'].includes(docType);
     let url = '/api/cards?q=' + encodeURIComponent(q);
     if (docType === 'print') url += '&status=ready_to_print';
     if (docType === 'issue') url += '&status=ready_to_issue';
@@ -279,13 +286,17 @@ function loadPickCards() {
     if (docType === 'return_mfc') url += '&status=issued';
     if (docType === 'defect') url += '&status=ready_to_print';
     if (docType === 'transfer_region') url += '&status=ready_to_print';
+    if (showOwnerCol) {
+        const ownerInput = document.getElementById('pickOwnerSearch');
+        if (ownerInput && ownerInput.value.trim()) url += '&owner=' + encodeURIComponent(ownerInput.value.trim());
+    }
     fetch(url).then(r => r.json()).then(data => {
         const tbody = document.getElementById('pickCardsBody');
         tbody.innerHTML = '';
         data.forEach(c => {
             const tr = document.createElement('tr');
-            tr.innerHTML = `<td>${c.card_number}</td><td>${c.card_type_name}</td><td><span class="status-badge status-${c.status}">${c.status_name}</span></td>
-            <td><button class="btn btn-sm btn-primary" onclick="selectCard('${c.card_number}','${c.card_type_id}','${c.card_type_name}','${c.owner_name}')">Выбрать</button></td>`;
+            tr.innerHTML = `<td>${c.card_number}</td><td>${c.card_type_name}</td>${showOwnerCol ? `<td>${c.owner_name || ''}</td>` : ''}<td><span class="status-badge status-${c.status}">${c.status_name}</span></td>
+            <td><button class="btn btn-sm btn-primary" onclick="selectCard('${c.card_number}','${c.card_type_id}','${c.card_type_name}','${(c.owner_name || '').replace(/'/g, "\\'")}')">Выбрать</button></td>`;
             tbody.appendChild(tr);
         });
     });
