@@ -228,6 +228,7 @@ def ref_cards_delete(card_id):
     flash("Карта удалена", "success")
     return redirect(url_for("ref_cards"))
 
+
 # ============== REFERENCE: CARD TYPES ==============
 @app.route("/refs/card_types", methods=["GET", "POST"])
 @login_required
