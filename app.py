@@ -228,7 +228,6 @@ def ref_cards_delete(card_id):
     flash("Карта удалена", "success")
     return redirect(url_for("ref_cards"))
 
-
 # ============== REFERENCE: CARD TYPES ==============
 @app.route("/refs/card_types", methods=["GET", "POST"])
 @login_required
@@ -630,6 +629,14 @@ def doc_print_form(doc_id, form_type):
                                employee=employee,
                                author=author,
                                our_org=our_org)
+    elif doc.get("doc_type") == "transfer_mfc" and form_type == "register":
+        return render_template("docs/print_register.html",
+                               doc=doc,
+                               lines=enriched_lines,
+                               mfc=mfc,
+                               employee=employee,
+                               author=author,
+                               our_org=our_org)
     elif doc.get("doc_type") == "transfer_mfc" and form_type == "transfer":
         return render_template("docs/print_transfer_mfc.html",
                                doc=doc,
@@ -657,14 +664,19 @@ def doc_print_form(doc_id, form_type):
 def api_cards():
     status = request.args.get("status", "")
     q = request.args.get("q", "")
+    owner_q = request.args.get("owner", "")
     cards = get_cards()
+    owners = {o["id"]: o for o in get_owners()}
     if status:
         cards = [c for c in cards if c.get("status") == status]
     if q:
         cards = [c for c in cards if q in c.get("card_number", "")]
+    if owner_q:
+        # Filter by owner full name (case-insensitive substring)
+        cards = [c for c in cards
+                 if owner_q.lower() in owners.get(c.get("owner_id", ""), {}).get("full_name", "").lower()]
     result = []
     ct_map = {ct["id"]: ct for ct in get_card_types()}
-    owners = {o["id"]: o for o in get_owners()}
     for c in cards:
         ct = ct_map.get(c.get("card_type_id", ""), {})
         owner = owners.get(c.get("owner_id", ""), {})
